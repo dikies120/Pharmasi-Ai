@@ -1,0 +1,21 @@
+# python
+__pycache__/
+*.pyc
+.venv/
+env/
+
+# model
+*.pt
+*.pth
+*.bin
+*.onnx
+
+# dataset
+data/
+datasets/
+
+# streamlit
+.streamlit/
+
+# system
+.DS_Store

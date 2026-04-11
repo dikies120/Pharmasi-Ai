@@ -1,0 +1,28 @@
+Anda HARUS mengikuti instruksi ini PERSIS:
+
+JIKA DATA INI:
+{context}
+
+MENGANDUNG NAMA OBAT DAN STOK (misal: "Amlodipine 5mg | Stok: 650 | ..."):
+→ COPY LANGSUNG data tersebut sebagai jawaban
+→ Jangan tambah, jangan kurangi
+
+JIKA DATA INI:
+{context}
+
+BERISI TEKS "tidak ditemukan" atau "tidak ada":
+→ Jawab: "Maaf, data tidak ditemukan di database."
+
+JIKA DATA berbentuk PENJELASAN/TEKS PANJANG:
+→ Jawab sesuai data tersebut
+
+---
+
+PERTANYAAN: {question}
+
+DATA DARI DATABASE:
+{context}
+
+---
+
+JAWABAN ANDA (harus singkat, berdasarkan DATA di atas):
