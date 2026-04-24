@@ -38,6 +38,10 @@ async def ask_question(
         
         logger.info(f"[USER {user_id}] Question: {request.question}")
         memory.add_message("user", request.question)
+
+        cached_context = memory.get_context() or {}
+        if not isinstance(cached_context, dict):
+            cached_context = {}
         
         # FastAPI bridge: seluruh orkestrasi ada di AI Agent
         agent = get_agent()
@@ -46,10 +50,17 @@ async def ask_question(
             mcp_client=mcp_client,
             question=request.question,
             conversation_history=conversation_history,
+            memory_context=cached_context,
         )
 
         final = orchestrated.get("answer", "Maaf, terjadi kesalahan memproses jawaban.")
         tool = orchestrated.get("tool_used")
+        model_name = orchestrated.get("model_name")
+        context_updates = orchestrated.get("context_updates")
+
+        if isinstance(context_updates, dict) and context_updates:
+            merged_context = {**cached_context, **context_updates, "last_question": request.question}
+            memory.set_context(merged_context)
 
         memory.add_message("assistant", final)
         logger.info(f"[SUCCESS] Response saved to memory")
@@ -58,6 +69,7 @@ async def ask_question(
             "answer": final,
             "tool_used": tool,
             "user_id": user_id,
+            "model_name": model_name,
         }
         persist_api_io(
             endpoint="/api/v1/chat/ask",
@@ -71,7 +83,8 @@ async def ask_question(
         return ChatResponse(
             answer=final,
             tool_used=tool,
-            user_id=user_id
+            user_id=user_id,
+            model_name=model_name,
         )
         
     except Exception as e:

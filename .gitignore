@@ -3,6 +3,10 @@ __pycache__/
 *.pyc
 .venv/
 env/
+venv/
+
+# env file
+.env
 
 # model
 *.pt
@@ -17,5 +21,4 @@ datasets/
 # streamlit
 .streamlit/
 
-# system
-.DS_Store
+docker-compose.yml

@@ -17,6 +17,7 @@ class ChatResponse(BaseModel):
     answer: str = Field(..., description="Jawaban dari sistem")
     tool_used: Optional[str] = Field(default=None, description="Tool yang digunakan")
     user_id: Optional[str] = Field(default=None, description="User identifier")
+    model_name: Optional[str] = Field(default=None, description="Nama model LLM yang digunakan")
 
 
 class HealthResponse(BaseModel):

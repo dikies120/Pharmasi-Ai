@@ -2,52 +2,79 @@ import streamlit as st
 import requests
 import pandas as pd
 import plotly.express as px
+import time
+from datetime import datetime
 from components.theme import apply_custom_theme
 
 st.set_page_config(page_title="Dashboard Operasional Farmasi", layout="wide")
 apply_custom_theme()
 
 st.title("Dashboard Operasional Farmasi")
-st.markdown("Dashboard Terpadu: Insight AI, Persediaan Real-Time, Penjualan, & Tren Transaksi")
+st.markdown("Dashboard Terpadu: Insight AI, Persediaan Real-Time, Penjualan")
+
+API_BASE_URL = "http://localhost:8000/api/v1/monitoring-stok"
+REQUEST_TIMEOUT = 10
+
+if "dashboard_refresh_token" not in st.session_state:
+    st.session_state["dashboard_refresh_token"] = int(time.time() * 1000)
+if "dashboard_last_sync" not in st.session_state:
+    st.session_state["dashboard_last_sync"] = "-"
+
+toolbar_col1, toolbar_col2 = st.columns([1, 3])
+with toolbar_col1:
+    if st.button("Refresh Data dari DB", type="primary", use_container_width=True):
+        st.session_state["dashboard_refresh_token"] = int(time.time() * 1000)
+        st.rerun()
+with toolbar_col2:
+    st.caption(f"Sinkron terakhir: {st.session_state.get('dashboard_last_sync', '-')}")
 
 # 1. Fetch Data
-@st.cache_data(ttl=60)
-def fetch_analytics():
+@st.cache_data(ttl=5, show_spinner=False)
+def fetch_analytics(refresh_token: int = 0):
     try:
-        res = requests.get("http://localhost:8000/api/v1/monitoring-stok/analytics")
+        res = requests.get(
+            f"{API_BASE_URL}/analytics",
+            params={"_": refresh_token},
+            timeout=REQUEST_TIMEOUT,
+        )
         if res.status_code == 200:
             return res.json()
-    except:
+    except Exception:
         pass
     return {}
 
-def fetch_realtime(nama, lokasi, status):
+def fetch_realtime(nama, lokasi, status, refresh_token: int = 0):
     params = {}
     if nama: params['nama_obat'] = nama
     if lokasi and lokasi != "Semua Lokasi": params['lokasi'] = lokasi
     if status and status != "Semua": params['status'] = status
+    params['_'] = refresh_token
     
     try:
-        res = requests.get("http://localhost:8000/api/v1/monitoring-stok/realtime", params=params)
+        res = requests.get(f"{API_BASE_URL}/realtime", params=params, timeout=REQUEST_TIMEOUT)
         if res.status_code == 200:
             return res.json().get("data", [])
-    except:
+    except Exception:
         pass
     return []
+
+refresh_token = st.session_state.get("dashboard_refresh_token", 0)
 
 # Bikin 2 tab
 tab_dashboard, tab_crud = st.tabs(["Dashboard & Monitoring", "Kelola Stok (CRUD)"])
 
 with tab_dashboard:
     with st.spinner("Memuat data analitik & AI insights..."):
-        analytics_resp = fetch_analytics()
+        analytics_resp = fetch_analytics(refresh_token)
         analytics_data = analytics_resp.get("data", {})
         ai_insight = analytics_resp.get("ai_insight", "Insight AI belum tersedia.")
+        if analytics_data:
+            st.session_state["dashboard_last_sync"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
     # ==========================================
     # BAGIAN 1: AI INSIGHT
     # ==========================================
-    st.markdown("### Ringkasan Angka AI Agent")
+    st.markdown("### Insight AI")
     st.code(ai_insight, language="text")
 
     st.markdown("---")
@@ -119,9 +146,9 @@ with tab_dashboard:
     with c2:
         filter_lokasi = st.selectbox("Filter Lokasi", ["Semua Lokasi", "Gudang 1", "Gudang 2", "Apotek Depan", "IGD", "Rawat Inap"])
     with c3:
-        filter_status = st.selectbox("Status", ["Semua", "Stok Kritis", "Aman", "Hampir Expired"])
+        filter_status = st.selectbox("Status", ["Semua", "Stok Kritis", "Hampir Habis", "Hampir Expired", "Aman"])
 
-    realtime_data = fetch_realtime(filter_nama, filter_lokasi, filter_status)
+    realtime_data = fetch_realtime(filter_nama, filter_lokasi, filter_status, refresh_token=refresh_token)
 
     if realtime_data:
         df_realtime = pd.DataFrame(realtime_data)
@@ -167,7 +194,7 @@ with tab_crud:
     
     crud_tabs = st.tabs(["Daftar Stok (Read)", "Tambah Obat & Stok (Create)", "Update / Hapus (Update & Delete)"])
     
-    semua_data = fetch_realtime("", "Semua Lokasi", "Semua")
+    semua_data = fetch_realtime("", "Semua Lokasi", "Semua", refresh_token=refresh_token)
     
     with crud_tabs[0]:
         st.subheader("Data Stok Saat Ini")

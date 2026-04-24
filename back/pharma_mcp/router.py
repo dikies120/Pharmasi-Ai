@@ -1,5 +1,6 @@
 import logging
 from typing import Optional
+from datetime import date
 from back.tools.obat_tools import (
     search_obat_by_stock as obat_stock_impl,
     search_obat_by_harga as obat_harga_impl,
@@ -34,9 +35,6 @@ logger = logging.getLogger(__name__)
 def register_tools(mcp, pg_conn=None, rag_pipeline=None):
     logger.info("Registering Pharma MCP tools and resources...")
 
-    # ==========================================
-    # MCP RESOURCES (Read-only data)
-    # ==========================================
     @mcp.resource("inventory://stock_data")
     def get_stock_data() -> str:
         with pg_conn.cursor() as cur:
@@ -95,9 +93,19 @@ def register_tools(mcp, pg_conn=None, rag_pipeline=None):
             row = cur.fetchone()
             return str(row)
 
-    # ==========================================
-    # MCP TOOLS (Actions / Processing)
-    # ==========================================
+    @mcp.tool()
+    def search_obat_by_stock(operator: str = ">", nilai: Optional[int] = None, nama_obat: Optional[str] = None) -> dict:
+        return obat_stock_impl(pg_conn, operator, nilai, nama_obat)
+
+    @mcp.tool()
+    def search_obat_by_harga(operator: str = "<", nilai: Optional[int] = None, nama_obat: Optional[str] = None) -> dict:
+        return obat_harga_impl(pg_conn, operator, nilai, nama_obat)
+
+    @mcp.tool()
+    def search_obat_by_kadaluarsa(operator: str = "<", tanggal: Optional[str] = None, nama_obat: Optional[str] = None) -> dict:
+        target_tanggal = tanggal or date.today().isoformat()
+        return obat_kadaluarsa_impl(pg_conn, operator, target_tanggal, nama_obat)
+
     # --- A. Monitoring Stok ---
     @mcp.tool()
     def calculate_stock_status(nama_obat: str = None) -> dict: return calculate_stock_status_impl(pg_conn, nama_obat)
@@ -159,35 +167,146 @@ def register_tools(mcp, pg_conn=None, rag_pipeline=None):
         client = pymongo.MongoClient("mongodb://localhost:27017/", serverSelectionTimeoutMS=2000)
         return client["simrs"][col_name]
 
-    @mcp.tool()
-    def get_patient_data(patient_id: str) -> dict:
-        """Get patient clinical data and past diagnosis/prescriptions from PostgreSQL"""
+    def _fetch_patient_data(patient_id: str) -> dict:
         try:
+            query_text = str(patient_id or "").strip()
+            if not query_text:
+                return {"status": "error", "error": "Patient ID/Nama tidak boleh kosong."}
+
             with pg_conn.cursor() as cur:
-                cur.execute("SELECT id, name, medical_record_number, allergies, bpjs_status, faskes_level FROM patients WHERE medical_record_number = %s OR name ILIKE %s ORDER BY id DESC LIMIT 1", (patient_id, f"%{patient_id}%"))
+                p = None
+
+                # 1) Prioritaskan kecocokan exact MRN.
+                cur.execute(
+                    """
+                    SELECT id, name, date_of_birth, medical_record_number, allergies, bpjs_status, faskes_level
+                    FROM patients
+                    WHERE medical_record_number = %s
+                    ORDER BY id DESC
+                    LIMIT 1
+                    """,
+                    (query_text,),
+                )
                 p = cur.fetchone()
-                if not p: return {"error": "Patient not found"}
-                pid, pname, pmrn, pallergies, pbpjs, pfaskes = p
-                
-                cur.execute("""
-                    SELECT p.diagnosis_code, p.diagnosis_notes, pi.nama_obat, pi.qty, pi.instructions
-                    FROM prescriptions p JOIN prescription_items pi ON p.id = pi.prescription_id
-                    WHERE p.patient_id = %s ORDER BY p.date DESC LIMIT 10
-                """, (pid,))
-                resep = cur.fetchall()
-                
-                return {
+
+                # 2) Jika tidak ada, coba kecocokan exact nama (case-insensitive).
+                if not p:
+                    cur.execute(
+                        """
+                        SELECT id, name, date_of_birth, medical_record_number, allergies, bpjs_status, faskes_level
+                        FROM patients
+                        WHERE LOWER(name) = LOWER(%s)
+                        ORDER BY id DESC
+                        LIMIT 1
+                        """,
+                        (query_text,),
+                    )
+                    p = cur.fetchone()
+
+                # 3) Fallback ke partial nama hanya jika hasilnya tunggal.
+                if not p:
+                    cur.execute(
+                        """
+                        SELECT id, name, date_of_birth, medical_record_number, allergies, bpjs_status, faskes_level
+                        FROM patients
+                        WHERE name ILIKE %s
+                        ORDER BY id DESC
+                        LIMIT 5
+                        """,
+                        (f"%{query_text}%",),
+                    )
+                    candidates = cur.fetchall()
+                    if len(candidates) == 1:
+                        p = candidates[0]
+                    elif len(candidates) > 1:
+                        return {
+                            "status": "error",
+                            "error": "Input pasien ambigu. Gunakan MRN spesifik.",
+                            "candidates": [f"{row[1]} ({row[3]})" for row in candidates],
+                        }
+
+                if not p:
+                    return {"status": "error", "error": "Patient not found"}
+
+                pid, pname, pdob, pmrn, pallergies, pbpjs, pfaskes = p
+
+                usia_tahun = None
+                if pdob:
+                    try:
+                        usia_tahun = date.today().year - pdob.year - ((date.today().month, date.today().day) < (pdob.month, pdob.day))
+                    except Exception:
+                        usia_tahun = None
+
+                cur.execute(
+                    """
+                    SELECT id, diagnosis_code, diagnosis_notes, date
+                    FROM prescriptions
+                    WHERE patient_id = %s
+                    ORDER BY date DESC, id DESC
+                    LIMIT 1
+                    """,
+                    (pid,),
+                )
+                latest_prescription = cur.fetchone()
+
+                resep = []
+                diagnosis_code = None
+                diagnosis_note = None
+                prescription_id = None
+                prescription_date = None
+
+                if latest_prescription:
+                    prescription_id, diagnosis_code, diagnosis_note, prescription_date = latest_prescription
+                    cur.execute(
+                        """
+                        SELECT nama_obat, qty, instructions
+                        FROM prescription_items
+                        WHERE prescription_id = %s
+                        ORDER BY id ASC
+                        """,
+                        (prescription_id,),
+                    )
+                    resep = cur.fetchall()
+
+                payload = {
+                    "status": "success",
                     "nama": pname,
                     "mrn": pmrn,
+                    "tanggal_lahir": pdob.isoformat() if pdob else None,
+                    "usia_tahun": usia_tahun,
                     "alergi": pallergies,
                     "bpjs_status": pbpjs,
                     "faskes_level": pfaskes,
-                    "active_diagnosis": [r[0] for r in resep] if resep and resep[0][0] else ["J06.9"],
-                    "diagnosis_notes": [r[1] for r in resep] if resep and resep[0][1] else ["Tidak tercatat"],
-                    "active_prescriptions": [{"drug": r[2], "qty": r[3], "aturan_minum": r[4]} for r in resep] if resep else []
+                    "active_diagnosis": [diagnosis_code] if diagnosis_code else [],
+                    "diagnosis_notes": [diagnosis_note] if diagnosis_note else [],
+                    "active_prescription_id": prescription_id,
+                    "active_prescription_date": prescription_date.isoformat() if prescription_date else None,
+                    "active_prescriptions": [{"drug": r[0], "qty": r[1], "aturan_minum": r[2]} for r in resep] if resep else [],
                 }
+
+                diagnosis_text = ", ".join([str(code) for code in payload["active_diagnosis"] if code]) or "-"
+                diagnosis_note_text = payload["diagnosis_notes"][0] if payload["diagnosis_notes"] else "-"
+
+                payload["context"] = (
+                    f"Nama Pasien: {pname}\n"
+                    f"MRN: {pmrn}\n"
+                    f"Tanggal Lahir: {pdob.isoformat() if pdob else '-'}\n"
+                    f"Usia: {usia_tahun if usia_tahun is not None else '-'} tahun\n"
+                    f"Alergi: {pallergies or '-'}\n"
+                    f"Status BPJS: {pbpjs}\n"
+                    f"Faskes Level: {pfaskes}\n"
+                    f"Diagnosis Aktif: {diagnosis_text}\n"
+                    f"Catatan Diagnosis: {diagnosis_note_text}"
+                )
+
+                return payload
         except Exception as e:
-            return {"error": str(e)}
+            return {"status": "error", "error": str(e)}
+
+    @mcp.tool()
+    def get_patient_data(patient_id: str) -> dict:
+        """Get patient clinical data and past diagnosis/prescriptions from PostgreSQL"""
+        return _fetch_patient_data(patient_id)
 
     @mcp.tool()
     def get_icd11_data(kode_diagnosa: str) -> dict:
@@ -223,6 +342,73 @@ def register_tools(mcp, pg_conn=None, rag_pipeline=None):
                 return {"nama_obat": drug_name, "stok": 0, "pesan": "Obat tidak ditemukan di inventory gudang postgreSQL."}
         except Exception as e:
             return {"error": str(e)}
+
+    @mcp.tool()
+    def check_medicine_safety(patient_id: str, medicine: str) -> dict:
+        """Validasi keamanan obat berdasarkan data pasien dari DB (alergi, interaksi, kontraindikasi, dosis)."""
+        patient_data = _fetch_patient_data(patient_id)
+        if patient_data.get("error"):
+            return {
+                "status": "error",
+                "error": patient_data.get("error"),
+                "context": f"Data pasien '{patient_id}' tidak ditemukan di database.",
+            }
+
+        diagnosis_notes = patient_data.get("diagnosis_notes") or []
+        kondisi_pasien = diagnosis_notes[0] if diagnosis_notes else "umum"
+
+        allergy_result = check_allergy_impl(pg_conn, patient_id, medicine)
+        interaction_result = check_drug_interaction_impl(pg_conn, patient_id, medicine)
+        contraindication_result = check_contraindication_impl(pg_conn, medicine, kondisi_pasien)
+        dose_result = check_dose_impl(pg_conn, medicine, patient_id)
+
+        checks = [
+            ("Alergi", allergy_result),
+            ("Interaksi Obat", interaction_result),
+            ("Kontraindikasi", contraindication_result),
+            ("Dosis", dose_result),
+        ]
+
+        warnings = []
+        detail_lines = []
+        detail_map = {}
+        for label, result in checks:
+            status = str(result.get("status", "unknown")).lower()
+            detail = result.get("context") or result.get("message") or "Tidak ada detail"
+            detail_lines.append(f"- {label}: {detail}")
+            detail_map[label.lower().replace(" ", "_")] = {
+                "status": status,
+                "detail": detail,
+            }
+            if status not in {"safe", "success", "ok"}:
+                warnings.append(label)
+
+        verdict = "PERLU REVIEW FARMASIS/DOKTER" if warnings else "AMAN"
+
+        patient_name = patient_data.get("nama", patient_id)
+        patient_mrn = patient_data.get("mrn", patient_id)
+
+        context = "\n".join(
+            [
+                f"Hasil cek keamanan obat untuk pasien {patient_name} ({patient_mrn})",
+                f"Obat: {medicine}",
+                f"Status: {verdict}",
+                "Detail pemeriksaan:",
+                *detail_lines,
+                "Saran: konsultasikan ke dokter/farmasis sebelum obat diberikan." if warnings else "Saran: obat dinilai aman berdasarkan data saat ini.",
+            ]
+        )
+
+        return {
+            "status": "success",
+            "patient_name": patient_name,
+            "patient_mrn": patient_mrn,
+            "medicine": medicine,
+            "verdict": verdict,
+            "warnings": warnings,
+            "checks": detail_map,
+            "context": context,
+        }
 
     logger.info("All Pharma MCP tools and resources registered successfully")
 

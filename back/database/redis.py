@@ -82,3 +82,14 @@ def get_cache(key: str) -> Optional[Any]:
     except Exception as e:
         logger.error(f"[REDIS ERROR GET] {e}")
         return None
+
+
+def delete_cache(key: str) -> bool:
+    try:
+        client = get_redis_client()
+        client.delete(key)
+        logger.info(f"[REDIS DEL] {key}")
+        return True
+    except Exception as e:
+        logger.error(f"[REDIS ERROR DEL] {e}")
+        return False

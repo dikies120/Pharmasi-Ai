@@ -1,5 +1,6 @@
 import logging
 import uuid
+from datetime import date
 
 logger = logging.getLogger(__name__)
 
@@ -29,6 +30,18 @@ def get_realtime_stock_tool(pg_conn, nama_obat: str = None, lokasi: str = None, 
         results = []
         for row in rows:
             qty = row[6]
+            expiry_date = row[5]
+
+            days_to_expiry = None
+            near_expiry = False
+            if expiry_date:
+                try:
+                    days_to_expiry = (expiry_date - date.today()).days
+                    near_expiry = days_to_expiry <= 30
+                except Exception:
+                    days_to_expiry = None
+                    near_expiry = False
+
             current_status = "Aman"
             if qty < 50:
                 current_status = "Stok Kritis"
@@ -36,9 +49,14 @@ def get_realtime_stock_tool(pg_conn, nama_obat: str = None, lokasi: str = None, 
                 current_status = "Hampir Habis"
                 
             if status and status != "Semua":
-                if status == "Stok Kritis" and current_status != "Stok Kritis":
+                status_norm = str(status).strip().lower()
+                if status_norm == "stok kritis" and current_status != "Stok Kritis":
                     continue
-                if status == "Aman" and current_status != "Aman":
+                if status_norm == "aman" and current_status != "Aman":
+                    continue
+                if status_norm == "hampir habis" and current_status != "Hampir Habis":
+                    continue
+                if status_norm in {"hampir expired", "hampir kadaluarsa"} and not near_expiry:
                     continue
             
             results.append({
@@ -48,6 +66,8 @@ def get_realtime_stock_tool(pg_conn, nama_obat: str = None, lokasi: str = None, 
                 "lokasi": row[3],
                 "batch_no": row[4],
                 "expiry_date": row[5].strftime("%Y-%m-%d") if row[5] else None,
+                "days_to_expiry": days_to_expiry,
+                "near_expiry": near_expiry,
                 "stok": qty,
                 "satuan": row[7],
                 "status": current_status
@@ -297,7 +317,7 @@ def get_dispensing_preview(pg_conn, prescription_id: str) -> dict:
         medicines = []
         medicines_detail = []
         need_mixing = False
-        patient_name = rows[0][2]
+        patient_name = rows[0][3]
 
         for row in rows:
             med_name = row[0]

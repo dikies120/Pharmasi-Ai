@@ -71,5 +71,5 @@ def ask_question(rag_pipeline, question: str) -> dict:
         return {
             "tool": "ask_question",
             "status": "error",
-            "answer": f"Error: {str(e)}"
+            "answer": "Maaf, pencarian knowledge base sedang bermasalah. Silakan coba lagi."
         }
