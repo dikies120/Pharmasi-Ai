@@ -1,24 +1,22 @@
-# python
+
 __pycache__/
 *.pyc
 .venv/
 env/
 venv/
 
-# env file
 .env
 
-# model
 *.pt
 *.pth
 *.bin
 *.onnx
 
-# dataset
 data/
 datasets/
 
-# streamlit
-.streamlit/
+.media/
+.session/
 
-docker-compose.yml
+backup.sql
+

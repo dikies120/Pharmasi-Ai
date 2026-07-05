@@ -1,0 +1,12 @@
+
+.env
+.venv/
+env/
+venv/
+
+seed_admin.py
+update_patient.py
+test.csv
+
+__pycache__/
+*.pyc
