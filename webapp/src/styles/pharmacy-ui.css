@@ -1,0 +1,113 @@
+@layer components {
+  /* === HERO SECTIONS === */
+  .pharmacy-hero {
+    @apply relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-6 shadow-sm md:p-8;
+  }
+
+  .pharmacy-hero--validation {
+    @apply bg-gradient-to-br from-violet-50 to-indigo-50 border-violet-100;
+  }
+
+  .pharmacy-hero--inventory {
+    @apply bg-gradient-to-br from-sky-50 to-blue-50 border-sky-100;
+  }
+
+  .pharmacy-hero--chat {
+    @apply bg-gradient-to-br from-teal-50 to-cyan-50 border-teal-100;
+  }
+
+  .pharmacy-hero--dispensing {
+    @apply bg-gradient-to-br from-emerald-50 to-teal-50 border-emerald-100;
+  }
+
+  /* === PANELS === */
+  .pharmacy-panel {
+    @apply rounded-2xl border border-slate-200 bg-white shadow-sm;
+  }
+
+  .pharmacy-panel-soft {
+    @apply rounded-xl border border-slate-100 bg-slate-50;
+  }
+
+  /* === INPUTS === */
+  .pharmacy-input {
+    @apply w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-base text-slate-800 outline-none placeholder:text-slate-400 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition;
+  }
+
+  .pharmacy-input-sm {
+    @apply w-full rounded-xl border border-slate-200 bg-white px-4 py-2 text-base text-slate-800 outline-none placeholder:text-slate-400 focus:border-blue-400 transition;
+  }
+
+  .pharmacy-select {
+    @apply rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm text-slate-700 outline-none focus:border-blue-400 transition;
+  }
+
+  /* === BUTTONS === */
+  .pharmacy-button-primary {
+    @apply inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-bold text-white transition-all hover:brightness-110 active:scale-95;
+  }
+
+  .pharmacy-button-primary--violet {
+    background: linear-gradient(135deg, #6366f1, #a855f7);
+  }
+
+  .pharmacy-button-primary--sky {
+    background: linear-gradient(135deg, #0ea5e9, #6366f1);
+  }
+
+  .pharmacy-button-primary--emerald {
+    background: linear-gradient(135deg, #10b981, #38bdf8);
+  }
+
+  /* === CHIPS & BADGES === */
+  .pharmacy-chip {
+    @apply inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-bold;
+  }
+
+  /* === ALERTS === */
+  .pharmacy-alert {
+    @apply flex items-center gap-3 rounded-xl border px-4 py-3 text-sm;
+  }
+
+  .pharmacy-alert--warn {
+    @apply border-amber-200 bg-amber-50 text-amber-700;
+  }
+
+  .pharmacy-alert--error {
+    @apply border-red-200 bg-red-50 text-red-700;
+  }
+
+  /* === TABLE === */
+  .pharmacy-panel-divider {
+    @apply border-b border-slate-100;
+  }
+
+  .pharmacy-panel-muted {
+    @apply bg-slate-50 border-b border-slate-100;
+  }
+
+  .pharmacy-table-header {
+    @apply px-5 py-3 text-left text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500 bg-slate-50;
+  }
+
+  .pharmacy-table-row {
+    @apply border-b border-slate-100;
+  }
+
+  /* === CHAT MESSAGES === */
+  .pharmacy-message {
+    @apply max-w-[88%] rounded-2xl px-4 py-3 text-sm;
+  }
+
+  .pharmacy-message--user {
+    @apply bg-blue-600 text-white ml-auto;
+  }
+
+  .pharmacy-message--assistant {
+    @apply bg-white border border-slate-200 text-slate-800 mr-auto shadow-sm;
+  }
+
+  .pharmacy-tag {
+    @apply rounded-full px-2 py-0.5 text-[10px] text-slate-500 bg-slate-100 border border-slate-200;
+  }
+}
