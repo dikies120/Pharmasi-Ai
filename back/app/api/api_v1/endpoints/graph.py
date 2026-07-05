@@ -1,4 +1,3 @@
-"""Graph data endpoints"""
 import logging
 from fastapi import APIRouter, Depends, HTTPException
 
@@ -13,15 +12,6 @@ logger = logging.getLogger(__name__)
 
 @router.get("/medicines")
 async def get_medicines_graph():
-    """Get medicines overview data untuk graph visualization
-    
-    Returns:
-    - total_medicines: Total jumlah obat
-    - stock_distribution: Distribusi stok (low, medium, high)
-    - price_distribution: Distribusi harga
-    - expiry_distribution: Status kadaluarsa
-    - medicines: List lengkap obat
-    """
     try:
         pg_conn = get_pgvector_connection()
         data = GraphDataService.get_medicines_overview(pg_conn)
@@ -46,13 +36,6 @@ async def get_medicines_graph():
 
 @router.get("/chat-history")
 async def get_chat_history_graph():
-    """Get chat history trends untuk graph visualization
-    
-    Returns:
-    - total_chats: Total chat dijalankan
-    - most_asked_medicines: Top 5 obat paling ditanya
-    - tool_usage: Usage count setiap tool
-    """
     try:
         memory_manager = get_memory_manager_instance()
         data = GraphDataService.get_chat_history_trends(memory_manager)
@@ -77,12 +60,6 @@ async def get_chat_history_graph():
 
 @router.get("/dashboard")
 async def get_dashboard_data():
-    """Get combined dashboard data (medicines + chat history)
-    
-    Returns:
-    - medicines: Medicines overview
-    - chat_trends: Chat history trends
-    """
     try:
         pg_conn = get_pgvector_connection()
         memory_manager = get_memory_manager_instance()

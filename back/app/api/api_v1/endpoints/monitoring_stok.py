@@ -5,12 +5,17 @@ from back.app.request_audit import persist_api_io
 from back.app.dependencies import get_mcp_client, get_agent
 from typing import Optional
 
-router = APIRouter(prefix="/monitoring-stok", tags=["monitoring-stok"])
+from back.app.middleware.auth import require_pharmacist_or_admin
+
+router = APIRouter(
+    prefix="/monitoring-stok",
+    tags=["monitoring-stok"],
+    dependencies=[Depends(require_pharmacist_or_admin)]
+)
 logger = logging.getLogger(__name__)
 
 @router.get("/")
 async def get_stok(mcp_client: MCPClient = Depends(get_mcp_client)):
-    """FastAPI bridge: delegasikan pengambilan stok ke AI Agent."""
     try:
         agent = get_agent()
         result = await agent.run_monitoring_realtime(mcp_client)

@@ -33,13 +33,14 @@ class ConversationMemory:
             return value.decode("utf-8", errors="ignore")
         return str(value)
 
-    def add_message(self, role: str, content: str, tool_used: Optional[str] = None) -> bool:
+    def add_message(self, role: str, content: str, tool_used: Optional[str] = None, name: Optional[str] = None) -> bool:
         try:
             saved = add_chat_message(
                 user_id=self.user_id,
                 role=role,
                 content=content,
-                tool=tool_used
+                tool=tool_used,
+                name=name
             )
 
             if not saved:

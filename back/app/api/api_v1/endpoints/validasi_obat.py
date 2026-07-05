@@ -7,10 +7,16 @@ from back.app.request_audit import persist_api_io
 from back.app.dependencies import get_mcp_client, get_agent
 from back.database.redis import get_cache, set_cache
 
-router = APIRouter(prefix="/validasi-obat", tags=["validasi-obat"])
+from back.app.middleware.auth import require_pharmacist_or_admin
+
+router = APIRouter(
+    prefix="/validasi-obat",
+    tags=["validasi-obat"],
+    dependencies=[Depends(require_pharmacist_or_admin)]
+)
 logger = logging.getLogger(__name__)
-VALIDASI_CACHE_TTL_SECONDS = 86400  # 24 jam
-VALIDASI_CACHE_VERSION = "v173"
+VALIDASI_CACHE_TTL_SECONDS = 1800  # 30 menit
+VALIDASI_CACHE_VERSION = "v17"
 
 
 class ValidasiRequest(BaseModel):

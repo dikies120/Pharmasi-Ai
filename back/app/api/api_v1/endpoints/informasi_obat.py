@@ -5,7 +5,13 @@ from back.pharma_mcp.client import MCPClient
 from back.app.request_audit import persist_api_io
 from back.app.dependencies import get_mcp_client
 
-router = APIRouter(prefix="/informasi-obat", tags=["informasi-obat"])
+from back.app.middleware.auth import require_pharmacist_or_admin
+
+router = APIRouter(
+    prefix="/informasi-obat",
+    tags=["informasi-obat"],
+    dependencies=[Depends(require_pharmacist_or_admin)]
+)
 logger = logging.getLogger(__name__)
 
 class InfoRequesst(BaseModel):
@@ -13,7 +19,7 @@ class InfoRequesst(BaseModel):
 
 @router.post("/")
 async def get_informasi(req: InfoRequesst, mcp_client: MCPClient = Depends(get_mcp_client)):
-    """Ambil informasi obat menggunakan RAG."""
+    
     try:
         result = await mcp_client.call_tool("ask_question", {"question": req.query})
 

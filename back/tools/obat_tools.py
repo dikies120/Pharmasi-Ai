@@ -11,14 +11,7 @@ from back.services.info_obat import (
 logger = logging.getLogger(__name__)
 
 def search_obat_by_stock(pg_conn, operator: str, nilai: int, nama_obat: Optional[str] = None) -> dict:
-    """Cari obat berdasarkan stok dengan parameter yang sudah diekstrak dari agent
-    
-    Flow:
-    1. Terima partial nama_obat dari agent
-    2. RESOLVE: partial name → full name dari database
-    3. Query DB dengan resolved full name
-    4. Return hasil dengan info tentang nama yang di-resolve
-    """
+   
     try:
         logger.info(f"[TOOL] search_obat_by_stock called: operator={operator}, nilai={nilai} (type={type(nilai).__name__}), nama_obat={nama_obat}")
         
@@ -61,14 +54,7 @@ def search_obat_by_stock(pg_conn, operator: str, nilai: int, nama_obat: Optional
 
 
 def search_obat_by_harga(pg_conn, operator: str, nilai: int, nama_obat: Optional[str] = None) -> dict:
-    """Cari obat berdasarkan harga dengan parameter yang sudah diekstrak dari agent
-    
-    Flow:
-    1. Terima partial nama_obat dari agent
-    2. RESOLVE: partial name → full name dari database
-    3. Query DB dengan resolved full name
-    4. Return hasil dengan info tentang nama yang di-resolve
-    """
+   
     try:
         logger.info(f"Searching price: operator={operator}, nilai={nilai}, nama_obat={nama_obat}")
         
@@ -111,14 +97,7 @@ def search_obat_by_harga(pg_conn, operator: str, nilai: int, nama_obat: Optional
 
 
 def search_obat_by_kadaluarsa(pg_conn, operator: str, tanggal: str, nama_obat: Optional[str] = None) -> dict:
-    """Cari obat berdasarkan tanggal kadaluarsa dengan parameter yang sudah diekstrak dari agent
     
-    Flow:
-    1. Terima partial nama_obat dari agent
-    2. RESOLVE: partial name → full name dari database
-    3. Query DB dengan resolved full name
-    4. Return hasil dengan info tentang nama yang di-resolve
-    """
     try:
         logger.info(f"Searching expiry: operator={operator}, tanggal={tanggal}, nama_obat={nama_obat}")
         

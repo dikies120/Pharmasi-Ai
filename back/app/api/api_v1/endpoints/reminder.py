@@ -6,7 +6,13 @@ from back.pharma_mcp.client import MCPClient
 from back.app.request_audit import persist_api_io
 from back.app.dependencies import get_mcp_client
 
-router = APIRouter(prefix="/reminder", tags=["reminder"])
+from back.app.middleware.auth import get_current_user
+
+router = APIRouter(
+    prefix="/reminder",
+    tags=["reminder"],
+    dependencies=[Depends(get_current_user)]
+)
 logger = logging.getLogger(__name__)
 
 class ReminderRequest(BaseModel):

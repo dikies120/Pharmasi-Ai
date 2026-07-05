@@ -99,6 +99,7 @@ class LLM:
         prompt: str,
         options: Optional[dict[str, Any]] = None,
         response_format: Optional[str] = None,
+        system: Optional[str] = None,
     ) -> str:
         if not self.model_available:
             self.model_available = self.debug_connection(verbose=False)
@@ -116,6 +117,8 @@ class LLM:
         }
         if response_format:
             generate_kwargs["format"] = response_format
+        if system:
+            generate_kwargs["system"] = system
 
         response = self.client.generate(**generate_kwargs)
         return response["response"]

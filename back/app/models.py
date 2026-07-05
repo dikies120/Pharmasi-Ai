@@ -1,4 +1,5 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, EmailStr, Field
+from datetime import datetime, date
 from typing import Optional, Any, Dict, List
 from datetime import date
 
@@ -6,6 +7,7 @@ from datetime import date
 class ChatRequest(BaseModel):
     question: str = Field(..., description="Pertanyaan apapun tentang obat, stok, harga, atau kadaluarsa")
     user_id: Optional[str] = Field(default="user_1", description="User identifier")
+    patient_context: Optional[Dict[str, Any]] = Field(default=None, description="Konteks medis pasien dari SIM RS")
 
 
 class ToolResponse(BaseModel):
@@ -29,3 +31,22 @@ class HealthResponse(BaseModel):
 class ErrorResponse(BaseModel):
     detail: str = Field(..., description="Deskripsi error")
     error_type: Optional[str] = Field(default=None, description="Tipe error")
+
+
+# Auth Models
+class UserModel(BaseModel):
+    """Model untuk user data"""
+    id: str
+    name: str
+    email: EmailStr
+    role: str = "patient"  # "patient" atau "pharmacist"
+
+
+class SessionModel(BaseModel):
+    """Model untuk session data"""
+    token: str
+    user_id: str
+    email: str
+    name: str
+    created_at: datetime
+    expires_at: datetime

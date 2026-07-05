@@ -13,3 +13,8 @@ def load_prompt(prompt_name: str) -> str:
 SYSTEM_PROMPT = load_prompt("system_prompt")
 FINAL_ANSWER_PROMPT = load_prompt("final_answer_prompt")
 ANALYTICS_PROMPT = load_prompt("analytics_prompt")
+PATIENT_CHATBOT_PROMPT = load_prompt("patient_chatbot_prompt")
+PHARMACIST_CHATBOT_PROMPT = load_prompt("pharmacist_chatbot_prompt")
+VALIDATION_PROMPT = load_prompt("validation_prompt")
+DISPENSING_PROMPT = load_prompt("dispensing_prompt")
+DISPENSING_RETRY_PROMPT = load_prompt("dispensing_retry_prompt")

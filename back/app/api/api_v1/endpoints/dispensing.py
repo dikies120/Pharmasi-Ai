@@ -7,10 +7,16 @@ from back.app.request_audit import persist_api_io
 from back.app.dependencies import get_mcp_client, get_agent
 from back.database.redis import get_cache, set_cache, delete_cache
 
-router = APIRouter(prefix="/dispensing", tags=["dispensing"])
+from back.app.middleware.auth import require_pharmacist_or_admin
+
+router = APIRouter(
+    prefix="/dispensing",
+    tags=["dispensing"],
+    dependencies=[Depends(require_pharmacist_or_admin)]
+)
 logger = logging.getLogger(__name__)
-DISPENSING_PREVIEW_CACHE_TTL_SECONDS = 3600  # 1 jam
-DISPENSING_PREVIEW_CACHE_VERSION = "v8"
+DISPENSING_PREVIEW_CACHE_TTL_SECONDS = 1800  # 30 menit
+DISPENSING_PREVIEW_CACHE_VERSION = "v10"
 
 
 class DispensingRequest(BaseModel):
@@ -31,9 +37,7 @@ def _clear_dispensing_preview_cache(prescription_id: str) -> None:
 
 @router.post("/")
 async def process_dispensing(req: DispensingRequest, mcp_client: MCPClient = Depends(get_mcp_client)):
-    """FastAPI bridge: preview dispensing diproses oleh AI Agent."""
     try:
-        # Auto mode: dispensing screening selalu melalui LLM, tetap dipercepat dengan cache.
         include_llm_reasoning = True
 
         cache_key = _build_dispensing_preview_cache_key(req.prescription_id, include_llm_reasoning)
@@ -92,7 +96,6 @@ async def process_dispensing(req: DispensingRequest, mcp_client: MCPClient = Dep
 
 @router.post("/complete")
 async def complete_dispensing(req: DispensingRequest, mcp_client: MCPClient = Depends(get_mcp_client)):
-    """FastAPI bridge: penyelesaian dispensing (update stok) via AI Agent -> MCP."""
     try:
         agent = get_agent()
         result = await agent.run_dispensing_complete(mcp_client, req.prescription_id)

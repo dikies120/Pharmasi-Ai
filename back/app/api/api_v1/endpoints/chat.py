@@ -8,42 +8,31 @@ from back.app.dependencies import (
     get_memory_manager_instance,
     get_agent,
 )
+from back.app.middleware.auth import get_current_user, require_pharmacist_or_admin
 from back.pharma_mcp.client import MCPClient
 
 router = APIRouter(prefix="/chat", tags=["chat"])
 logger = logging.getLogger(__name__)
 
 
-@router.post("/ask", response_model=ChatResponse)
-async def ask_question(
+async def _process_chat_request(
     request: ChatRequest,
-    mcp_client: MCPClient = Depends(get_mcp_client),
-):
-    """
-    Unified chat endpoint - tanya apapun tentang obat
-    
-    Agent otomatis menentukan tool yang sesuai:
-    - Pertanyaan tentang stok → search_obat_by_stock
-    - Pertanyaan tentang harga → search_obat_by_harga
-    - Pertanyaan tentang kadaluarsa → search_obat_by_kadaluarsa
-    - Pertanyaan umum → ask_question (RAG)
-
-    Request: 
-    - **question**: Pertanyaan apapun (contoh: "Stok paracetamol berapa?", "Obat mana yang paling murah?")
-    - **user_id**: User identifier (opsional)
-    """
+    mcp_client: MCPClient,
+    role: str,
+    endpoint_path: str,
+    user_name: str = ""
+) -> ChatResponse:
     try:
         user_id = request.user_id or "user_1"
         memory = get_memory_manager_instance().get_or_create_memory(user_id)
         
-        logger.info(f"[USER {user_id}] Question: {request.question}")
-        memory.add_message("user", request.question)
+        logger.info(f"[USER {user_id}][ROLE {role}] Question: {request.question}")
+        memory.add_message("user", request.question, name=user_name)
 
         cached_context = memory.get_context() or {}
         if not isinstance(cached_context, dict):
             cached_context = {}
         
-        # FastAPI bridge: seluruh orkestrasi ada di AI Agent
         agent = get_agent()
         conversation_history = memory.get_conversation_history(limit=5)
         orchestrated = await agent.run_chat_turn(
@@ -51,6 +40,8 @@ async def ask_question(
             question=request.question,
             conversation_history=conversation_history,
             memory_context=cached_context,
+            role=role,
+            patient_context=request.patient_context,
         )
 
         final = orchestrated.get("answer", "Maaf, terjadi kesalahan memproses jawaban.")
@@ -62,7 +53,7 @@ async def ask_question(
             merged_context = {**cached_context, **context_updates, "last_question": request.question}
             memory.set_context(merged_context)
 
-        memory.add_message("assistant", final)
+        memory.add_message("assistant", final, name="Pharmasi AI")
         logger.info(f"[SUCCESS] Response saved to memory")
 
         response_payload = {
@@ -72,7 +63,7 @@ async def ask_question(
             "model_name": model_name,
         }
         persist_api_io(
-            endpoint="/api/v1/chat/ask",
+            endpoint=endpoint_path,
             method="POST",
             request_data=request,
             response_data=response_payload,
@@ -89,7 +80,7 @@ async def ask_question(
         
     except Exception as e:
         persist_api_io(
-            endpoint="/api/v1/chat/ask",
+            endpoint=endpoint_path,
             method="POST",
             request_data=request,
             response_data={"detail": str(e)},
@@ -98,3 +89,23 @@ async def ask_question(
         )
         logger.error(f"[ERROR] Unexpected error: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
+
+
+@router.post("/pharmacy/ask", response_model=ChatResponse)
+async def ask_pharmacy(
+    request: ChatRequest,
+    mcp_client: MCPClient = Depends(get_mcp_client),
+    current_user: dict = Depends(require_pharmacist_or_admin),
+):
+    user_name = current_user.get("name", "Apoteker")
+    return await _process_chat_request(request, mcp_client, "pharmacist", "/api/v1/chat/pharmacy/ask", user_name)
+
+
+@router.post("/patient/ask", response_model=ChatResponse)
+async def ask_patient(
+    request: ChatRequest,
+    mcp_client: MCPClient = Depends(get_mcp_client),
+    current_user: dict = Depends(get_current_user),
+):
+    user_name = current_user.get("name", "Pasien")
+    return await _process_chat_request(request, mcp_client, "patient", "/api/v1/chat/patient/ask", user_name)

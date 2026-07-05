@@ -7,7 +7,13 @@ from back.pharma_mcp.client import MCPClient
 from back.app.request_audit import persist_api_io
 from back.app.dependencies import get_mcp_client, get_agent
 
-router = APIRouter(prefix="/asuransi", tags=["asuransi"])
+from back.app.middleware.auth import require_pharmacist_or_admin
+
+router = APIRouter(
+    prefix="/asuransi",
+    tags=["asuransi"],
+    dependencies=[Depends(require_pharmacist_or_admin)]
+)
 logger = logging.getLogger(__name__)
 
 

@@ -19,12 +19,13 @@ def get_chat_collection():
     return db["pharma_logs"]
 
 
-def add_chat_message(user_id: str, role: str, content: str, tool: str = None) -> bool:
+def add_chat_message(user_id: str, role: str, content: str, tool: str = None, name: str = None) -> bool:
     try:
         collection = get_chat_collection()
         collection.insert_one({
             "user_id": user_id,
             "role": role,
+            "name": name,
             "content": content,
             "tool": tool,
             "timestamp": datetime.utcnow().isoformat(),
@@ -92,6 +93,7 @@ def insert_chat(user_id, messages):
             docs.append({
                 "user_id": user_id,
                 "role": msg.get("role"),
+                "name": msg.get("name"),
                 "content": msg.get("content"),
                 "tool": msg.get("tool"),
                 "timestamp": msg.get("timestamp", now.isoformat()),

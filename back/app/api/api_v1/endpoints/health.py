@@ -13,9 +13,7 @@ router = APIRouter(prefix="/health", tags=["health"])
 async def health_check(
     mcp_client: MCPClient = Depends(get_mcp_client),
 ):
-    """
-    Check health dan status MCP connection
-    """
+    
     mcp_connected = mcp_client.session is not None
     
     response_payload = HealthResponse(
